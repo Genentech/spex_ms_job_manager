@@ -174,6 +174,8 @@ class Executor:
         # download image tiff
         path = a_task["params"].get("image_path")
         if not (path and os.path.isfile(path)):
+            if not a_task.get('omeroId', None) and len(a_task.get('params', {}).get('omeroIds', [])) > 0:
+                a_task['omeroId'] = a_task.get('params', {}).get('omeroIds', [])[0]
             path, new_status = get_image_from_omero(a_task)
 
         if path is None:
