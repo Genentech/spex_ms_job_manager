@@ -13,3 +13,5 @@ scripts_envs/
 *.tiff
 *.tif
 *.pickle
+LEFT
+/testing_dml
