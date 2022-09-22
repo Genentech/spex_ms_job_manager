@@ -200,7 +200,18 @@ class Executor:
 
         error = f'path of image is not a file: {path}'
         if os.path.isfile(path):
-            a_task["params"].update(image_path=path, folder=script_path)
+            if related_id := a_task["params"].get('related_task', None):
+                parent_tasks = get_tasks([related_id])
+                for item in parent_tasks:
+                    related_parent = item["parent"]
+                    a_task["params"].update(
+                        data_storage=os.getenv("DATA_STORAGE"),
+                        related_parent=related_parent
+                    )
+            a_task["params"].update(
+                image_path=path,
+                folder=script_path,
+            )
 
             try:
                 result = self.start_scenario(**a_task["params"])
