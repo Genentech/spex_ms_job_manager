@@ -111,7 +111,7 @@ def get_parent_task_status(_id: str):
 
 
 def get_tasks(ids):
-    return TaskService.select_tasks(condition='in', _key=ids)
+    return TaskService.select_tasks(condition='in', parent=ids)
 
 
 def update_status(collection, login, status, a_task, result=None, error=None):
