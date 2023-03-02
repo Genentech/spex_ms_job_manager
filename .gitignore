@@ -15,3 +15,5 @@ scripts_envs/
 *.pickle
 LEFT
 /testing_dml
+/R-4.2.2/
+/R-4.2.2.tar.gz
