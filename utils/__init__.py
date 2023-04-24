@@ -104,8 +104,10 @@ def get_parent_task_status(_id: str):
     previous_task_status: int = TaskStatus.complete.value
 
     if task_list:
-        previous_task_status = task_list[0].get('status', 0)
-        previous_task_id = task_list[0].get('_key', "")
+        for old_task in task_list:
+            if task.omeroId == old_task["omeroId"]:
+                previous_task_status = task_list[0].get('status', 0)
+                previous_task_id = task_list[0].get('_key', "")
 
     return previous_task_status, previous_task_id
 

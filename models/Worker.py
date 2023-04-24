@@ -123,10 +123,11 @@ def enrich_task_data(a_task):
     )
 
     for item in tasks:
-        filename = getAbsoluteRelative(item["result"], True)
-        with open(filename, "rb") as outfile:
-            current_file_data = pickle.load(outfile)
-            data = {**data, **current_file_data}
+        if item['omeroId'] == a_task['omeroId']:
+            filename = getAbsoluteRelative(item["result"], True)
+            with open(filename, "rb") as outfile:
+                current_file_data = pickle.load(outfile)
+                data = {**data, **current_file_data}
 
     return data
 
