@@ -14,7 +14,7 @@ def start_workers():
     workers.append(worker)
     worker.start()
 
-    for index in range(2):
+    for index in range(get_pool_size('WORKERS_POOL')):
         worker = Worker(index)
         workers.append(worker)
         worker.start()
