@@ -10,7 +10,7 @@ def start_workers():
     logger.info('Starting')
     workers = []
 
-    worker = ArangoWorker(get_pool_size('WORKERS_POOL'))
+    worker = ArangoWorker(0)
     workers.append(worker)
     worker.start()
 
