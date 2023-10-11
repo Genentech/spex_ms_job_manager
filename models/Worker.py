@@ -21,7 +21,6 @@ from models.Constants import collection, Events
 from utils import (
     get_task_with_status,
     get_parent_task_status,
-    add_history as add_history_original,
     update_status as update_status_original,
     add_to_waiting_table as add_to_waiting_table_original,
     already_in_waiting_table,
@@ -30,7 +29,6 @@ from utils import (
     get_tasks,
 )
 
-add_history = partial(add_history_original, 'job_manager_runner')
 update_status = partial(update_status_original, collection, 'job_manager_runner')
 add_to_waiting_table = partial(add_to_waiting_table_original, login='job_manager_catcher')
 
@@ -221,12 +219,6 @@ class Executor:
                     self.logger.error(error)
                 else:
                     error = result.get('error')
-                    hist_dict = {
-                        key: result[key]
-                        for key in ("stderr", "stdout")
-                    }
-                    add_history(f"jobs/{a_task['parent']}", hist_dict)
-
                     result = {
                         key: result[key]
                         for key in result.keys() if key not in ("stderr", "stdout")

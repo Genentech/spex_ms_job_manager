@@ -1,23 +1,11 @@
 import spex_common.services.Task as TaskService
 from datetime import datetime
 from spex_common.modules.database import db_instance
-from spex_common.models.History import history
 from spex_common.models.WaitTableEntry import wait_table_entry, WaitTableEntry
 from spex_common.models.Status import TaskStatus
-
-
-def add_history(login, parent, content, event_type: str = "job_manager_update"):
-    db_instance().insert('history', history({
-        'author': {
-            'login': login,
-            'id': '0'
-        },
-        'date': datetime.now().isoformat(),
-        'content': content,
-        'parent': parent,
-        'event_type': event_type
-    }).to_json())
-
+from spex_common.modules.logging import get_logger
+logger = get_logger('job_manager_utils')
+logging = False
 
 def add_to_waiting_table(login, waiter_type, waiter_id, what_awaits):
     db_instance().insert('waiting_table', wait_table_entry({
@@ -116,7 +104,8 @@ def get_tasks(ids):
     return TaskService.select_tasks(condition='in', _key=ids)
 
 
-def update_status(collection, login, status, a_task, result=None, error=None):
+def update_status(collection, login, status, a_task, result=None, error=None, logging=logging):
+
     search = "FILTER doc._key == @value LIMIT 1"
     data = {"status": status}
 
@@ -126,14 +115,21 @@ def update_status(collection, login, status, a_task, result=None, error=None):
     if error:
         data.update({"error": error})
 
-    db_instance().update(
+    item = db_instance().update(
         collection,
         data,
         search,
         value=a_task["id"]
     )
-    add_history(
-        login,
-        f"jobs/{a_task['parent']}",
-        f'status from: {a_task["status"]} to: {status}',
-    )
+
+    if logging:
+        new_status = item[0].get('status')
+        task_list = db_instance().select(
+            "tasks",
+            search,
+            value=a_task["id"]
+        )
+        old_status = task_list[0].get('status')
+
+        if logging:
+            logger.critical(f"Updating task {a_task['name']}/{a_task['id']} with status {status}, extra=after_update_status: {new_status} extra=before_update_status: {old_status}")
