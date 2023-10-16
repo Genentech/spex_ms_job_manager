@@ -4,6 +4,8 @@ from spex_common.modules.database import db_instance
 from spex_common.models.WaitTableEntry import wait_table_entry, WaitTableEntry
 from spex_common.models.Status import TaskStatus
 from spex_common.modules.logging import get_logger
+from typing import List, Dict
+
 logger = get_logger('job_manager_utils')
 logging = False
 
@@ -98,6 +100,34 @@ def get_parent_task_status(_id: str):
                 previous_task_id = task_list[0].get('_key', "")
 
     return previous_task_status, previous_task_id
+
+
+def get_parent_tasks(_id: str) -> List[Dict]:
+    task = TaskService.select(_id)
+    parent_tasks: List[Dict] = []
+
+    parent_jobs = db_instance().select(
+        "pipeline_direction",
+        "FILTER doc._to == @value",
+        value=f"jobs/{_id}",
+    )
+
+    if not parent_jobs:
+        return parent_tasks
+
+    jobs_ids = [item["_from"][5:] for item in parent_jobs]
+
+    task_list = db_instance().select(
+        "tasks",
+        "FILTER doc.parent in @value ",
+        value=jobs_ids,
+    )
+
+    if task_list:
+        for old_task in task_list:
+            parent_tasks.append(old_task)
+
+    return parent_tasks
 
 
 def get_tasks(ids):
