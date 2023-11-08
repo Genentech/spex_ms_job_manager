@@ -145,6 +145,17 @@ def update_status(collection, login, status, a_task, result=None, error=None, lo
     if error:
         data.update({"error": error})
 
+    old_item = db_instance().select(
+        collection,
+        search,
+        value=a_task["id"]
+    )
+    if old_item:
+        old_item = old_item[0]
+        if old_item.get('status') == 100:
+            logger.critical(f"Trying to update task with status 100 {a_task['name']}/{a_task['id']}")
+            return
+
     item = db_instance().update(
         collection,
         data,

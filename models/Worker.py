@@ -159,6 +159,7 @@ class Executor:
         self.logger.info(f'task in process: {self.task_id}')
 
         previous_task_status, previous_tasks_id = get_parent_task_status(self.task_id)
+
         if previous_task_status != TaskStatus.complete.value:
             add_to_waiting_table(
                 waiter_id=self.task_id[6:],

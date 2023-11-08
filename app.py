@@ -3,6 +3,7 @@ from spex_common.config import load_config
 from spex_common.modules.logging import get_logger
 from models.Worker import Worker, get_pool_size
 from models.ArangoWorker import Worker as ArangoWorker
+from models.ArangoWorker import GarbageWorker
 
 
 def start_workers():
@@ -13,6 +14,10 @@ def start_workers():
     worker = ArangoWorker(0)
     workers.append(worker)
     worker.start()
+
+    worker1 = GarbageWorker(0)
+    workers.append(worker1)
+    worker1.start()
 
     for index in range(get_pool_size('WORKERS_POOL')):
         worker = Worker(index)
