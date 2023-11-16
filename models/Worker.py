@@ -8,7 +8,6 @@ import logging
 from os import cpu_count, getenv
 from functools import partial
 from multiprocessing import Process
-
 from spex_common.models.Status import TaskStatus
 from spex_common.modules.logging import get_logger
 from spex_common.modules.aioredis import create_aioredis_client
@@ -135,7 +134,6 @@ def get_path(job_id, task_id):
     path = os.path.join(os.getenv("DATA_STORAGE"), "jobs", job_id, task_id)
     if not os.path.isdir(path):
         os.makedirs(path, exist_ok=True)
-
     return path
 
 
@@ -311,7 +309,7 @@ class Executor:
         params = get_platform_venv_params(script, part)
         script_path = os.path.join(params["script_copy_path"], str(uuid.uuid4()))
         hist_data = {}
-
+        logger = get_logger()
         try:
             shutil.copytree(os.path.join(folder, part), script_path)
             runner_path = os.path.join(script_path, "__runner__.py")
@@ -353,6 +351,22 @@ class Executor:
 
             with open(filename, "rb") as outfile:
                 result_data = pickle.load(outfile)
+                tasks_list = data.get('tasks_list', [])
+                adatas = result_data.get('adatas_list', None)
+                if adatas:
+                    for task in tasks_list:
+                        for elem in adatas:
+                            key = f'{task.get("_key")}-clq'
+                            if one_adata := elem.get(key, None):
+                                zarr_dir = os.path.join(
+                                    get_path(task["_key"], task["parent"]), 'static', 'clq.h5ad.zarr'
+                                )
+                                if os.path.exists(zarr_dir):
+                                    shutil.rmtree(zarr_dir)
+                                logger.debug(f"zarr_dir: {zarr_dir}")
+                                os.makedirs(zarr_dir, exist_ok=True)
+                                one_adata.write_zarr(zarr_dir)
+
                 return {
                     **data,
                     **result_data,
