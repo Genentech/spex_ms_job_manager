@@ -63,6 +63,33 @@ def get_platform_venv_params(script, part):
     }
 
 
+def get_platform_conda_params(script, part):
+    env_path = os.getenv("SCRIPTS_ENVS_PATH", f"~/scripts_envs")
+    env_path = os.path.expanduser(env_path)
+
+    script_copy_path = os.path.join(env_path, "scripts", script, part)
+    os.makedirs(script_copy_path, exist_ok=True)
+
+    env_name = f"{script}_{part}"
+    conda_env_path = os.path.join(env_path, "conda_envs", script)
+    os.makedirs(conda_env_path, exist_ok=True)
+    conda_env_path = os.path.join(conda_env_path, part)
+    create_venv = f"conda create --prefix {conda_env_path} python=3.8 --yes "
+
+    activate_venv = "conda activate"
+    activate_venv += f" {conda_env_path}"
+
+    executor = "python"
+
+    return {
+        "env_path": conda_env_path,
+        "script_copy_path": script_copy_path,
+        "create_venv": create_venv,
+        "activate_venv": activate_venv,
+        "executor": executor
+    }
+
+
 def get_image_from_omero(a_task) -> str or None:
     image_id = a_task["omeroId"]
     file = OmeroImageFileManager(image_id)
@@ -96,7 +123,8 @@ def get_pool_size(env_name) -> int:
     value = getenv(env_name, 'cpus')
     if value.lower() == 'cpus':
         value = cpu_count()
-    return max(2, int(value))
+    # return max(2, int(value))
+    return 2
 
 
 def enrich_task_data(a_task):
@@ -268,16 +296,24 @@ class Executor:
                     f"Not have param '{key}' in script: {script}, in part {part}"
                 )
 
-        self.check_create_install_lib(script, part, data.get("libs", []))
-        return self.run_subprocess(folder, script, part, kwargs)
+        self.check_create_install_lib(
+            script,
+            part,
+            data.get("libs", []),
+            data.get('conda', [])
+        )
+        return self.run_subprocess(folder, script, part, data.get('conda', []), kwargs)
 
-    def check_create_install_lib(self, script, part, libs):
+    def check_create_install_lib(self, script, part, libs, conda):
         if not (isinstance(libs, list) and libs):
             return
 
-        params = get_platform_venv_params(script, part)
+        params = get_platform_conda_params(script, part) if conda else get_platform_venv_params(script, part)
 
-        install_libs = f"pip install {' '.join(libs)}"
+        if conda:
+            install_libs = f"conda install -y -c conda-forge {' '.join(libs)}"
+        else:
+            install_libs = f"pip install {' '.join(libs)}"
 
         if not os.path.isdir(params["env_path"]):
             command = params["create_venv"]
@@ -291,9 +327,7 @@ class Executor:
             )
             self.logger.debug(process.stdout.splitlines())
 
-        command = f"{params['activate_venv']}" \
-                  f" && {install_libs}"
-
+        command = f"{params['activate_venv']} && {install_libs}"
         self.logger.info(command)
 
         process = subprocess.run(
@@ -302,11 +336,10 @@ class Executor:
             universal_newlines=True,
             stdout=subprocess.PIPE,
         )
-
         self.logger.debug(process.stdout.splitlines())
 
-    def run_subprocess(self, folder, script, part, data) -> dict:
-        params = get_platform_venv_params(script, part)
+    def run_subprocess(self, folder, script, part, conda, data) -> dict:
+        params = get_platform_conda_params(script, part) if conda else get_platform_venv_params(script, part)
         script_path = os.path.join(params["script_copy_path"], str(uuid.uuid4()))
         hist_data = {}
         logger = get_logger()
