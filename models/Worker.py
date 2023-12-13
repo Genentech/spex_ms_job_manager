@@ -76,7 +76,7 @@ def get_platform_conda_params(script, part):
     conda_env_path = os.path.join(conda_env_path, part)
     create_venv = f"conda create --prefix {conda_env_path} python=3.8 --yes "
 
-    activate_venv = "conda activate"
+    activate_venv = "conda init bash && . ~/.bashrc && conda activate "
     activate_venv += f" {conda_env_path}"
 
     executor = "python"
@@ -311,23 +311,11 @@ class Executor:
         params = get_platform_conda_params(script, part) if conda else get_platform_venv_params(script, part)
 
         if conda:
-            install_libs = f"conda install -y -c conda-forge {' '.join(libs)}"
+            command = f"{params['activate_venv']} && conda install -y {' '.join(libs)}"
+
         else:
-            install_libs = f"pip install {' '.join(libs)}"
+            command = f"{params['activate_venv']} && pip install {' '.join(libs)}"
 
-        if not os.path.isdir(params["env_path"]):
-            command = params["create_venv"]
-            self.logger.info(command)
-
-            process = subprocess.run(
-                command,
-                shell=True,
-                universal_newlines=True,
-                stdout=subprocess.PIPE,
-            )
-            self.logger.debug(process.stdout.splitlines())
-
-        command = f"{params['activate_venv']} && {install_libs}"
         self.logger.info(command)
 
         process = subprocess.run(
@@ -337,6 +325,18 @@ class Executor:
             stdout=subprocess.PIPE,
         )
         self.logger.debug(process.stdout.splitlines())
+
+        if conda and not os.path.isdir(params["env_path"]):
+            create_venv_command = params["create_venv"]
+            self.logger.info(create_venv_command)
+
+            create_venv_process = subprocess.run(
+                create_venv_command,
+                shell=True,
+                universal_newlines=True,
+                stdout=subprocess.PIPE,
+            )
+            self.logger.debug(create_venv_process.stdout.splitlines())
 
     def run_subprocess(self, folder, script, part, conda, data) -> dict:
         params = get_platform_conda_params(script, part) if conda else get_platform_venv_params(script, part)
@@ -354,8 +354,10 @@ class Executor:
             filename = os.path.join(script_path, "__runner__.pickle")
             with open(filename, "wb") as infile:
                 pickle.dump(data, infile)
-
-            command = f"{params['activate_venv']} && {params['executor']} {runner_path}"
+            if conda:
+                command = f"{params['activate_venv']} && python {runner_path}"
+            else:
+                command = f"{params['activate_venv']} && {params['executor']} {runner_path}"
             self.logger.info(command)
 
             process = subprocess.run(
@@ -412,8 +414,8 @@ class Executor:
                 **hist_data
             }
         finally:
-            shutil.rmtree(script_path, ignore_errors=True)
-
+            # shutil.rmtree(script_path, ignore_errors=True)
+	        pass
 
 async def __executor(logger, event):
     a_task = event.data.get("task")

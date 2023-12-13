@@ -21,7 +21,10 @@ def put(name, data):
 
 
 if __name__ == '__main__':
-    print(f'current env: {os.environ["VIRTUAL_ENV"]}')
+    env = os.environ.get("VIRTUAL_ENV", None)
+    if env is None:
+        env = os.environ.get("CONDA_PREFIX", None)
+    print(f'current env: {env}')
     try:
         result = run(**get(__file__))
 
