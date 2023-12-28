@@ -312,23 +312,25 @@ class Executor:
 
         if conda:
             command = f"{params['activate_venv']} && conda install -y {' '.join(libs)}"
-
         else:
-            command = f"{params['activate_venv']} && pip install {' '.join(libs)}"
+            command = (f"{params['activate_venv']} "
+                       f" && pip install {' '.join(libs)}")
 
-        self.logger.info(command)
+        if not conda:
+            if not os.path.isdir(params["env_path"]):
+                command = params["create_venv"]
+                self.logger.info(command)
 
-        process = subprocess.run(
-            command,
-            shell=True,
-            universal_newlines=True,
-            stdout=subprocess.PIPE,
-        )
-        self.logger.debug(process.stdout.splitlines())
-
-        if conda and not os.path.isdir(params["env_path"]):
+                process = subprocess.run(
+                    command,
+                    shell=True,
+                    universal_newlines=True,
+                    stdout=subprocess.PIPE,
+                )
+                self.logger.debug(process.stdout.splitlines())
+        else:
             create_venv_command = params["create_venv"]
-            self.logger.info(create_venv_command)
+            self.logger.info(f"Conda create: {create_venv_command}")
 
             create_venv_process = subprocess.run(
                 create_venv_command,
@@ -337,6 +339,15 @@ class Executor:
                 stdout=subprocess.PIPE,
             )
             self.logger.debug(create_venv_process.stdout.splitlines())
+
+        self.logger.info(command)
+        process = subprocess.run(
+            command,
+            shell=True,
+            universal_newlines=True,
+            stdout=subprocess.PIPE,
+        )
+        self.logger.debug(process.stdout.splitlines())
 
     def run_subprocess(self, folder, script, part, conda, data) -> dict:
         params = get_platform_conda_params(script, part) if conda else get_platform_venv_params(script, part)
@@ -367,6 +378,7 @@ class Executor:
                 capture_output=True,
                 text=True,
             )
+
             hist_data = {
                 "stderr": process.stderr if process.stderr else "",
                 "stdout": process.stdout if process.stdout else "",
@@ -414,8 +426,8 @@ class Executor:
                 **hist_data
             }
         finally:
-            # shutil.rmtree(script_path, ignore_errors=True)
-	        pass
+            shutil.rmtree(script_path, ignore_errors=True)
+
 
 async def __executor(logger, event):
     a_task = event.data.get("task")
