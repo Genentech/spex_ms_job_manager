@@ -46,7 +46,7 @@ def get_platform_venv_params(script, part):
 
     not_posix = os.name != "posix"
 
-    executor = "python" if not_posix else "python3"
+    executor = "python" if not_posix else "/usr/local/bin/python"
     start_script = "source" if not_posix else "."
     create_venv = f"{executor} -m venv {env_path} --system-site-packages"
 
@@ -365,10 +365,9 @@ class Executor:
             filename = os.path.join(script_path, "__runner__.pickle")
             with open(filename, "wb") as infile:
                 pickle.dump(data, infile)
-            if conda:
-                command = f"{params['activate_venv']} && python {runner_path}"
-            else:
-                command = f"{params['activate_venv']} && {params['executor']} {runner_path}"
+
+            command = f"{params['activate_venv']} && python {runner_path}"
+
             self.logger.info(command)
 
             process = subprocess.run(
