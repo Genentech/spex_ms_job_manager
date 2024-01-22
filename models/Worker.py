@@ -15,6 +15,8 @@ from spex_common.modules.database import db_instance
 from spex_common.services.Utils import getAbsoluteRelative
 from spex_common.modules.aioredis import send_event
 from spex_common.models.OmeroImageFileManager import OmeroImageFileManager
+import zarr
+
 
 from models.Constants import collection, Events
 from utils import (
