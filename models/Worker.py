@@ -17,7 +17,6 @@ from spex_common.modules.aioredis import send_event
 from spex_common.models.OmeroImageFileManager import OmeroImageFileManager
 import zarr
 
-
 from models.Constants import collection, Events
 from utils import (
     get_task_with_status,
@@ -65,7 +64,13 @@ def get_platform_venv_params(script, part):
     }
 
 
-def get_platform_conda_params(script, part):
+def get_platform_conda_params(
+        script,
+        part,
+        conda=None
+):
+    if not conda:
+        conda = ["python=3.8"]
     env_path = os.getenv("SCRIPTS_ENVS_PATH", f"~/scripts_envs")
     env_path = os.path.expanduser(env_path)
 
@@ -76,7 +81,9 @@ def get_platform_conda_params(script, part):
     conda_env_path = os.path.join(env_path, "conda_envs", script)
     os.makedirs(conda_env_path, exist_ok=True)
     conda_env_path = os.path.join(conda_env_path, part)
-    create_venv = f"conda create --prefix {conda_env_path} python=3.8 --yes "
+    conda_str = conda[0]
+
+    create_venv = f"conda create --prefix {conda_env_path} {conda_str} --yes "
 
     activate_venv = "conda init bash && . ~/.bashrc && conda activate "
     activate_venv += f" {conda_env_path}"
@@ -273,11 +280,11 @@ class Executor:
         send_event(Events.TASK_COMPLETED, {'id': a_task['id']})
 
     def start_scenario(
-        self,
-        script: str = "",
-        part: str = "",
-        folder: str = "",
-        **kwargs,
+            self,
+            script: str = "",
+            part: str = "",
+            folder: str = "",
+            **kwargs,
     ):
         manifest = os.path.join(folder, part, "manifest.json")
 
@@ -310,7 +317,7 @@ class Executor:
         if not (isinstance(libs, list) and libs):
             return
 
-        params = get_platform_conda_params(script, part) if conda else get_platform_venv_params(script, part)
+        params = get_platform_conda_params(script, part, conda) if conda else get_platform_venv_params(script, part)
 
         if conda:
             command = f"{params['activate_venv']} && conda install -y {' '.join(libs)}"
@@ -331,16 +338,26 @@ class Executor:
                 )
                 self.logger.debug(process.stdout.splitlines())
         else:
-            create_venv_command = params["create_venv"]
-            self.logger.info(f"Conda create: {create_venv_command}")
 
-            create_venv_process = subprocess.run(
-                create_venv_command,
-                shell=True,
+            completed_process = subprocess.run(
+                ['conda', 'env', 'list'],
+                capture_output=True,
+                text=True,
                 universal_newlines=True,
-                stdout=subprocess.PIPE,
             )
-            self.logger.debug(create_venv_process.stdout.splitlines())
+            if script in completed_process.stdout and part in completed_process.stdout:
+                self.logger.info(f"Conda env already exists: {script}-{part}")
+            else:
+                create_venv_command = params["create_venv"]
+                self.logger.info(f"Conda create: {create_venv_command}")
+
+                create_venv_process = subprocess.run(
+                    create_venv_command,
+                    shell=True,
+                    universal_newlines=True,
+                    stdout=subprocess.PIPE,
+                )
+                self.logger.debug(create_venv_process.stdout.splitlines())
 
         self.logger.info(command)
         process = subprocess.run(
@@ -352,7 +369,7 @@ class Executor:
         self.logger.debug(process.stdout.splitlines())
 
     def run_subprocess(self, folder, script, part, conda, data) -> dict:
-        params = get_platform_conda_params(script, part) if conda else get_platform_venv_params(script, part)
+        params = get_platform_conda_params(script, part, conda) if conda else get_platform_venv_params(script, part)
         script_path = os.path.join(params["script_copy_path"], str(uuid.uuid4()))
         hist_data = {}
         logger = get_logger()
