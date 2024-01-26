@@ -14,8 +14,10 @@ from spex_common.modules.aioredis import create_aioredis_client
 from spex_common.modules.database import db_instance
 from spex_common.services.Utils import getAbsoluteRelative
 from spex_common.modules.aioredis import send_event
+from spex_common.services.Files import check_path
 from spex_common.models.OmeroImageFileManager import OmeroImageFileManager
 import zarr
+import anndata
 
 from models.Constants import collection, Events
 from utils import (
@@ -209,18 +211,27 @@ class Executor:
         new_status = a_task.get("status")
         # download image tiff
         path = a_task["params"].get("image_path")
-        if not (path and os.path.isfile(path)):
-            if not a_task.get('omeroId', None) and len(a_task.get('params', {}).get('omeroIds', [])) > 0:
-                a_task['omeroId'] = a_task.get('params', {}).get('omeroIds', [])[0]
-            path, new_status = get_image_from_omero(a_task)
+        if a_task.get('file_names'):
+            filenames = a_task.get("file_names", [])
+            self.logger.info(f'file_names: {filenames}')
+            for file in filenames:
+                path, _ = check_path(a_task.get("author"), file)
+        else:
+            if not (path and os.path.isfile(path)):
+                if not a_task.get('omeroId', None) and len(a_task.get('params', {}).get('omeroIds', [])) > 0:
+                    a_task['omeroId'] = a_task.get('params', {}).get('omeroIds', [])[0]
+                if not a_task.get('filename', None):
+                    a_task['filename'] = f'{a_task.get("omeroId", "")}.tiff'
+                path, new_status = get_image_from_omero(a_task)
 
-        if path is None:
-            if new_status != TaskStatus.pending.value:
-                self.logger.info(f'task status is set error: {self.task_id}')
-                update_status(TaskStatus.error.value, a_task, error='image is not found')
-            else:
-                self.logger.info(f'task is moved to waiters: {self.task_id} ; reason await image: {a_task["omeroId"]}')
-            return
+            if path is None:
+                if new_status != TaskStatus.pending.value:
+                    self.logger.info(f'task status is set error: {self.task_id}')
+                    update_status(TaskStatus.error.value, a_task, error='image is not found')
+                else:
+                    self.logger.info(
+                        f'task is moved to waiters: {self.task_id} ; reason await image: {a_task["omeroId"]}')
+                return
 
         update_status(TaskStatus.in_work.value, a_task)
 
@@ -235,49 +246,52 @@ class Executor:
         filename = os.path.join(get_path(a_task["id"], a_task["parent"]), "result.pickle")
 
         error = f'path of image is not a file: {path}'
-        if os.path.isfile(path):
-            if a_task.get('name', '') == 'phenograph_cluster':
-                a_task["params"].update(
-                    data_storage=os.getenv("DATA_STORAGE"),
-                    parent=a_task["parent"],
-                    tasks_list=get_parent_tasks(a_task["parent"])
-                )
-            a_task["params"].update(
-                image_path=path,
-                folder=script_path,
-            )
-
-            try:
-                result = self.start_scenario(**a_task["params"])
-                if not result:
-                    error = f'problems with scenario params {a_task["params"]}'
-                    self.logger.error(error)
-                else:
-                    error = result.get('error')
-                    result = {
-                        key: result[key]
-                        for key in result.keys() if key not in ("stderr", "stdout")
-                    }
-
-                    with open(filename, "wb") as outfile:
-                        pickle.dump(result, outfile)
-            except Exception as err:
-                error = str(err)
-
-        if os.path.isfile(filename):
-            update_status(
-                TaskStatus.failed.value if error else TaskStatus.complete.value,
-                a_task,
-                result=getAbsoluteRelative(filename, False),
-                error=error,
-            )
-            self.logger.info(f"task is completed: {a_task['id']}")
+        if not path:
+            self.logger.info(f'file {path} not found')
         else:
-            update_status(TaskStatus.failed.value, a_task, error=error)
-            self.logger.info(f"task is uncompleted: {self.task_id}")
-            self.logger.info(f"set status to failed: {TaskStatus.failed.value}")
+            if os.path.isfile(path):
+                if a_task.get('name', '') == 'phenograph_cluster':
+                    a_task["params"].update(
+                        data_storage=os.getenv("DATA_STORAGE"),
+                        parent=a_task["parent"],
+                        tasks_list=get_parent_tasks(a_task["parent"])
+                    )
+                a_task["params"].update(
+                    image_path=path,
+                    folder=script_path,
+                )
 
-        send_event(Events.TASK_COMPLETED, {'id': a_task['id']})
+                try:
+                    result = self.start_scenario(**a_task["params"])
+                    if not result:
+                        error = f'problems with scenario params {a_task["params"]}'
+                        self.logger.error(error)
+                    else:
+                        error = result.get('error')
+                        result = {
+                            key: result[key]
+                            for key in result.keys() if key not in ("stderr", "stdout")
+                        }
+
+                        with open(filename, "wb") as outfile:
+                            pickle.dump(result, outfile)
+                except Exception as err:
+                    error = str(err)
+
+            if os.path.isfile(filename):
+                update_status(
+                    TaskStatus.failed.value if error else TaskStatus.complete.value,
+                    a_task,
+                    result=getAbsoluteRelative(filename, False),
+                    error=error,
+                )
+                self.logger.info(f"task is completed: {a_task['id']}")
+            else:
+                update_status(TaskStatus.failed.value, a_task, error=error)
+                self.logger.info(f"task is uncompleted: {self.task_id}")
+                self.logger.info(f"set status to failed: {TaskStatus.failed.value}")
+
+            send_event(Events.TASK_COMPLETED, {'id': a_task['id']})
 
     def start_scenario(
             self,
@@ -300,7 +314,7 @@ class Executor:
         self.logger.info(f"{script}-{part}")
         params = data.get("params")
         for key, item in params.items():
-            if kwargs.get(key) is None:
+            if kwargs.get(key) is None and item.get('required', True):
                 raise ValueError(
                     f"Not have param '{key}' in script: {script}, in part {part}"
                 )
