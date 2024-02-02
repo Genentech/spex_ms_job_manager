@@ -66,11 +66,7 @@ def get_platform_venv_params(script, part):
     }
 
 
-def get_platform_conda_params(
-        script,
-        part,
-        conda=None
-):
+def get_platform_conda_params(script, part, conda=None):
     if not conda:
         conda = ["python=3.8"]
     env_path = os.getenv("SCRIPTS_ENVS_PATH", f"~/scripts_envs")
@@ -85,10 +81,13 @@ def get_platform_conda_params(
     conda_env_path = os.path.join(conda_env_path, part)
     conda_str = conda[0]
 
-    create_venv = f"conda create --prefix {conda_env_path} {conda_str} --yes "
+    not_posix = os.name != "posix"
+    if not_posix:
+        activate_venv = f"{os.getenv('CONDA_PREFIX', 'conda')} activate {conda_env_path}"
+    else:
+        activate_venv = f". ~/.bashrc && conda activate {conda_env_path}"
 
-    activate_venv = "conda init bash && . ~/.bashrc && conda activate "
-    activate_venv += f" {conda_env_path}"
+    create_venv = f"conda create --prefix {conda_env_path} {conda_str} --yes"
 
     executor = "python"
 
@@ -99,7 +98,6 @@ def get_platform_conda_params(
         "activate_venv": activate_venv,
         "executor": executor
     }
-
 
 def get_image_from_omero(a_task) -> str or None:
     image_id = a_task["omeroId"]
@@ -160,7 +158,7 @@ def enrich_task_data(a_task):
     )
 
     for item in tasks:
-        if item['omeroId'] == a_task['omeroId']:
+        if item.get('omeroId', '') == a_task.get('omeroId', ''):
             filename = getAbsoluteRelative(item["result"], True)
             with open(filename, "rb") as outfile:
                 current_file_data = pickle.load(outfile)
