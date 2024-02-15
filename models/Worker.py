@@ -19,6 +19,7 @@ from spex_common.models.OmeroImageFileManager import OmeroImageFileManager
 import zarr
 import anndata
 
+
 from models.Constants import collection, Events
 from utils import (
     get_task_with_status,
@@ -34,6 +35,16 @@ from utils import (
 
 update_status = partial(update_status_original, collection, 'job_manager_runner')
 add_to_waiting_table = partial(add_to_waiting_table_original, login='job_manager_catcher')
+
+
+def _get_absolute(path_, absolute=True):
+    _path = getAbsoluteRelative(path_, absolute)
+    not_posix = os.name != "posix"
+    if not_posix:
+        _path = _path.replace("/", "\\")
+    else:
+        _path = _path.replace("\\", "/")
+    return _path
 
 
 def get_platform_venv_params(script, part):
@@ -159,7 +170,7 @@ def enrich_task_data(a_task):
 
     for item in tasks:
         if item.get('omeroId', '') == a_task.get('omeroId', ''):
-            filename = getAbsoluteRelative(item["result"], True)
+            filename = _get_absolute(item["result"], True)
             with open(filename, "rb") as outfile:
                 current_file_data = pickle.load(outfile)
                 data = {**data, **current_file_data}
@@ -227,13 +238,14 @@ class Executor:
                     self.logger.info(f'task status is set error: {self.task_id}')
                     update_status(TaskStatus.error.value, a_task, error='image is not found')
                 else:
+                    print('PATH:', path)
                     self.logger.info(
                         f'task is moved to waiters: {self.task_id} ; reason await image: {a_task["omeroId"]}')
                 return
 
         update_status(TaskStatus.in_work.value, a_task)
 
-        script_path = getAbsoluteRelative(
+        script_path = _get_absolute(
             os.path.join(
                 os.getenv("DATA_STORAGE"),
                 "Scripts",
@@ -280,7 +292,7 @@ class Executor:
                 update_status(
                     TaskStatus.failed.value if error else TaskStatus.complete.value,
                     a_task,
-                    result=getAbsoluteRelative(filename, False),
+                    result=_get_absolute(filename, False),
                     error=error,
                 )
                 self.logger.info(f"task is completed: {a_task['id']}")
