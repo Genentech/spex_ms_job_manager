@@ -2,7 +2,7 @@ import shutil
 import os
 import uuid
 import json
-import pickle
+import dill as pickle
 import subprocess
 import logging
 from os import cpu_count, getenv
@@ -16,6 +16,7 @@ from spex_common.services.Utils import getAbsoluteRelative
 from spex_common.modules.aioredis import send_event
 from spex_common.services.Files import check_path
 from spex_common.models.OmeroImageFileManager import OmeroImageFileManager
+import pandas as pd
 import zarr
 import anndata
 
@@ -439,7 +440,7 @@ class Executor:
                 }
 
             with open(filename, "rb") as outfile:
-                result_data = pickle.load(outfile)
+                result_data = pd.read_pickle(outfile)
                 tasks_list = data.get('tasks_list', [])
                 adatas = result_data.get('adatas_list', None)
                 if adatas:

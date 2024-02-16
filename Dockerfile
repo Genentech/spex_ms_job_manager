@@ -14,5 +14,6 @@ RUN pipenv install --system --deploy --ignore-pipfile
 RUN chmod +x ./install_r/install_conda.sh
 RUN ./install_r/install_conda.sh
 RUN conda init bash
+RUN pip install itsdangerous==2.0.1
 
 CMD ["/bin/bash", "-c", "source /opt/conda/etc/profile.d/conda.sh && /usr/local/bin/python app.py"]

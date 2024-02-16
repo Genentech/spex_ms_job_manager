@@ -10,8 +10,8 @@ from spex_common.modules.logging import get_logger
 from spex_common.services.Timer import every
 from spex_common.models.Status import TaskStatus
 import spex_common.services.Script as ScriptService
-import pickle
-
+import dill as pickle
+import pandas as pd
 from models.Constants import collection, Events
 from utils import (
     update_status as update_status_original
@@ -72,7 +72,7 @@ def task_is_completed(task_json):
     if not os.path.exists(absolute_path):
         return False
     with open(absolute_path, "rb") as infile:
-        to_show_data = pickle.load(infile)
+        to_show_data = pd.read_pickle(infile)
         for key in return_params.keys():
             if key not in to_show_data.keys():
                 return False

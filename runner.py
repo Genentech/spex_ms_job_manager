@@ -1,5 +1,5 @@
 from app import run
-import pickle
+import dill as pickle
 import os
 
 
