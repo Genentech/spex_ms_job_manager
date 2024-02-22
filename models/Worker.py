@@ -111,6 +111,7 @@ def get_platform_conda_params(script, part, conda=None):
         "executor": executor
     }
 
+
 def get_image_from_omero(a_task) -> str or None:
     image_id = a_task["omeroId"]
     file = OmeroImageFileManager(image_id)
@@ -144,8 +145,8 @@ def get_pool_size(env_name) -> int:
     value = getenv(env_name, 'cpus')
     if value.lower() == 'cpus':
         value = cpu_count()
-    # return max(2, int(value))
-    return 2
+    return max(2, int(value))
+    # return 2
 
 
 def enrich_task_data(a_task):
@@ -333,12 +334,13 @@ class Executor:
         self.check_create_install_lib(
             script,
             part,
-            data.get("libs", []),
-            data.get('conda', [])
+            data.get("libs", [])+["dill==0.3.8"],
+            data.get('conda', []),
+            data.get('conda_pip', []),
         )
         return self.run_subprocess(folder, script, part, data.get('conda', []), kwargs)
 
-    def check_create_install_lib(self, script, part, libs, conda):
+    def check_create_install_lib(self, script, part, libs, conda, conda_pip):
         if not (isinstance(libs, list) and libs):
             return
 
@@ -372,6 +374,8 @@ class Executor:
             )
             if script in completed_process.stdout and part in completed_process.stdout:
                 self.logger.info(f"Conda env already exists: {script}-{part}")
+            elif completed_process.stderr:
+                self.logger.error(completed_process.stderr)
             else:
                 create_venv_command = params["create_venv"]
                 self.logger.info(f"Conda create: {create_venv_command}")
@@ -391,6 +395,18 @@ class Executor:
             universal_newlines=True,
             stdout=subprocess.PIPE,
         )
+        self.logger.debug(process.stdout.splitlines())
+
+        if len(conda_pip) > 0:
+            command = f"bash -c \"{params['activate_venv']} && pip install {' '.join(conda_pip)}\""
+
+            self.logger.info(f'install conda_pip command: {command}')
+            process = subprocess.run(
+                command,
+                shell=True,
+                universal_newlines=True,
+                stdout=subprocess.PIPE,
+            )
         self.logger.debug(process.stdout.splitlines())
 
     def run_subprocess(self, folder, script, part, conda, data) -> dict:
