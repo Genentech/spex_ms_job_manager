@@ -145,8 +145,9 @@ def get_pool_size(env_name) -> int:
     value = getenv(env_name, 'cpus')
     if value.lower() == 'cpus':
         value = cpu_count()
-    return max(2, int(value))
-    # return 2
+    # TODO fix this, it's not working task take to work different workers, redis problem
+    # return max(2, int(value))
+    return 2
 
 
 def enrich_task_data(a_task):
@@ -274,7 +275,7 @@ class Executor:
                 )
 
                 try:
-                    result = self.start_scenario(**a_task["params"])
+                    result = self.start_scenario(**a_task["params"], filename=filename)
                     if not result:
                         error = f'problems with scenario params {a_task["params"]}'
                         self.logger.error(error)
@@ -310,6 +311,7 @@ class Executor:
             script: str = "",
             part: str = "",
             folder: str = "",
+            filename: str = "",
             **kwargs,
     ):
         manifest = os.path.join(folder, part, "manifest.json")
@@ -338,7 +340,14 @@ class Executor:
             data.get('conda', []),
             data.get('conda_pip', []),
         )
-        return self.run_subprocess(folder, script, part, data.get('conda', []), kwargs)
+        return self.run_subprocess(
+            folder,
+            script,
+            part,
+            data.get('conda', []),
+            filename,
+            kwargs
+        )
 
     def check_create_install_lib(self, script, part, libs, conda, conda_pip):
         if not (isinstance(libs, list) and libs):
@@ -409,7 +418,7 @@ class Executor:
             )
         self.logger.debug(process.stdout.splitlines())
 
-    def run_subprocess(self, folder, script, part, conda, data) -> dict:
+    def run_subprocess(self, folder, script, part, conda, pickle_filename, data) -> dict:
         params = get_platform_conda_params(script, part, conda) if conda else get_platform_venv_params(script, part)
         script_path = os.path.join(params["script_copy_path"], str(uuid.uuid4()))
         hist_data = {}
@@ -485,6 +494,15 @@ class Executor:
                 **hist_data
             }
         finally:
+            h5ad_filename_source = os.path.splitext(filename)[0] + '.h5ad'
+            if os.path.isfile(h5ad_filename_source):
+                h5ad_dest_path = os.path.join(
+                    os.path.dirname(pickle_filename),
+                    'result.h5ad'
+                )
+                shutil.copy(h5ad_filename_source, h5ad_dest_path)
+                self.logger.info(f'.h5ad file is saved next to: {h5ad_dest_path}')
+
             shutil.rmtree(script_path, ignore_errors=True)
 
 
