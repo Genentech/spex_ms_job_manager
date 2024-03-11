@@ -146,8 +146,7 @@ def get_pool_size(env_name) -> int:
     if value.lower() == 'cpus':
         value = cpu_count()
     # TODO fix this, it's not working task take to work different workers, redis problem
-    # return max(2, int(value))
-    return 2
+    return max(2, int(value))
 
 
 def enrich_task_data(a_task):
