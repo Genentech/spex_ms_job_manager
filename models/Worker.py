@@ -3,6 +3,7 @@ import os
 import uuid
 import json
 import dill as pickle
+import time
 import subprocess
 import logging
 from os import cpu_count, getenv
@@ -36,6 +37,25 @@ from utils import (
 
 update_status = partial(update_status_original, collection, 'job_manager_runner')
 add_to_waiting_table = partial(add_to_waiting_table_original, login='job_manager_catcher')
+
+
+def wait_for_pending_removal(pending_file_path):
+    while os.path.exists(os.path.join(pending_file_path, "pending")):
+        time.sleep(5)
+        logging.info(f"Waiting for create env at: {pending_file_path}")
+
+
+def create_pending_file(env_path):
+    os.makedirs(env_path, exist_ok=True)
+    pending_file_path = os.path.join(env_path, "pending")
+    with open(pending_file_path, "w") as f:
+        f.write("Installation in progress")
+
+
+def remove_pending_file(env_path):
+    pending_file_path = os.path.join(env_path, "pending")
+    if os.path.exists(pending_file_path):
+        os.remove(pending_file_path)
 
 
 def _get_absolute(path_, absolute=True):
@@ -146,7 +166,8 @@ def get_pool_size(env_name) -> int:
     if value.lower() == 'cpus':
         value = cpu_count()
     # TODO fix this, it's not working task take to work different workers, redis problem
-    return max(2, int(value))
+    # return max(2, int(value))
+    return 2
 
 
 def enrich_task_data(a_task):
@@ -353,27 +374,27 @@ class Executor:
             return
 
         params = get_platform_conda_params(script, part, conda) if conda else get_platform_venv_params(script, part)
+        wait_for_pending_removal(params["env_path"])
 
         if conda:
             command = f"{params['activate_venv']} && conda install -y {' '.join(libs)}"
         else:
-            command = (f"{params['activate_venv']} "
-                       f" && pip install {' '.join(libs)}")
+            command = f"{params['activate_venv']} && pip install {' '.join(libs)}"
 
         if not conda:
             if not os.path.isdir(params["env_path"]):
-                command = params["create_venv"]
-                self.logger.info(command)
+                create_pending_file(params["env_path"])
+                create_venv = params["create_venv"]
+                self.logger.info(create_venv)
 
                 process = subprocess.run(
-                    command,
+                    create_venv,
                     shell=True,
                     universal_newlines=True,
                     stdout=subprocess.PIPE,
                 )
                 self.logger.debug(process.stdout.splitlines())
         else:
-
             completed_process = subprocess.run(
                 ['conda', 'env', 'list'],
                 capture_output=True,
@@ -385,6 +406,7 @@ class Executor:
             elif completed_process.stderr:
                 self.logger.error(completed_process.stderr)
             else:
+                create_pending_file(params["env_path"])
                 create_venv_command = params["create_venv"]
                 self.logger.info(f"Conda create: {create_venv_command}")
 
@@ -416,6 +438,8 @@ class Executor:
                 stdout=subprocess.PIPE,
             )
         self.logger.debug(process.stdout.splitlines())
+
+        remove_pending_file(params["env_path"])
 
     def run_subprocess(self, folder, script, part, conda, pickle_filename, data) -> dict:
         params = get_platform_conda_params(script, part, conda) if conda else get_platform_venv_params(script, part)
