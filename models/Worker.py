@@ -401,8 +401,15 @@ class Executor:
                 text=True,
                 universal_newlines=True,
             )
-            if script in completed_process.stdout and part in completed_process.stdout:
-                self.logger.info(f"Conda env already exists: {script}-{part}")
+            lines: set = {f'{script}/{part}', f'{script}\\{part}', f'{script}//{part}', f'{script}\\\\{part}'}
+            exists = False
+            for line in lines:
+                if line in completed_process.stdout:
+                    exists = True
+                    break
+
+            if exists:
+                self.logger.info(f"Conda env already exists: {line}")
             elif completed_process.stderr:
                 self.logger.error(completed_process.stderr)
             else:
