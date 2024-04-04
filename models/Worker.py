@@ -262,9 +262,16 @@ class Executor:
                     update_status(TaskStatus.error.value, a_task, error='image is not found')
                 else:
                     print('PATH:', path)
-                    self.logger.info(
-                        f'task is moved to waiters: {self.task_id} ; reason await image: {a_task["omeroId"]}')
-                return
+                    if (
+                            a_task.get('filename', None) is None or a_task.get('filename', None) == '.tiff'
+                    ) and (
+                            a_task.get('omeroId', None) is None or a_task.get('omeroId') == ''
+                    ):
+                        self.logger.info(f'has nothing: {self.task_id}')
+                    else:
+                        self.logger.info(
+                            f'task is moved to waiters: {self.task_id} ; reason await image: {a_task["omeroId"]}')
+                        return
 
         update_status(TaskStatus.in_work.value, a_task)
 
@@ -498,6 +505,13 @@ class Executor:
                 result_data = pd.read_pickle(outfile)
                 tasks_list = data.get('tasks_list', [])
                 adatas = result_data.get('adatas_list', None)
+                if part in ['phenograph_cluster', 'clustering', 'clq_anndata']:
+
+                    zarr_dir = os.path.join(os.path.dirname(pickle_filename), 'static', 'zarr.h5ad.zarr')
+                    logger.debug(f"zarr_dir: {zarr_dir}")
+                    os.makedirs(zarr_dir, exist_ok=True)
+                    result_data.get('adata', None).write_zarr(zarr_dir)
+
                 if adatas:
                     for task in tasks_list:
                         for elem in adatas:

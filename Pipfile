@@ -7,9 +7,10 @@ name = "pypi"
 spex-common = {editable = true, path = "./../../common"}
 nest-asyncio = "==1.5.4"
 pandas = "==2.2.0"
-anndata = "==0.8.0"
+anndata = "==0.10.5"
 zarr = "==2.16.1"
 dill = "==0.3.8"
+vitessce = "==3.2.3"
 
 [dev-packages]
 
