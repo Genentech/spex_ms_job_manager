@@ -68,6 +68,8 @@ def task_is_completed(task_json):
     script_name = task_json.get("params", {}).get("script", "")
     part = task_json.get("params", {}).get("part", "")
     return_params = ScriptService.get_return_block_by_script_path(script_name, part)
+    if return_params is None:
+        return_params = {}
 
     if not os.path.exists(absolute_path):
         return False
