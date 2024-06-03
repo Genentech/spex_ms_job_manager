@@ -505,7 +505,7 @@ class Executor:
                 result_data = pd.read_pickle(outfile)
                 tasks_list = data.get('tasks_list', [])
                 adatas = result_data.get('adatas_list', None)
-                if part in ['phenograph_cluster', 'clustering', 'clq_anndata']:
+                if part in ['phenograph_cluster', 'clustering', 'clq_anndata', 'niche_analysis']:
 
                     zarr_dir = os.path.join(os.path.dirname(pickle_filename), 'static', 'zarr.h5ad.zarr')
                     logger.debug(f"zarr_dir: {zarr_dir}")
