@@ -10,7 +10,7 @@ COPY ./common /app/common
 
 WORKDIR /app/services/app
 
-RUN pipenv install --system --deploy --ignore-pipfile
+RUN pipenv install --system --ignore-pipfile
 RUN chmod +x ./install_r/install_r4.2.sh
 RUN chmod +x ./install_r/install_libs.sh
 RUN ./install_r/install_r4.2.sh
