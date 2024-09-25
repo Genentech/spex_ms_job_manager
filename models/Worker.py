@@ -9,6 +9,8 @@ import logging
 from os import cpu_count, getenv
 from functools import partial
 from multiprocessing import Process
+
+import spex_common.services.Task as TaskService
 from spex_common.models.Status import TaskStatus
 from spex_common.modules.logging import get_logger
 from spex_common.modules.aioredis import create_aioredis_client
@@ -208,6 +210,27 @@ def get_path(job_id, task_id):
     return path
 
 
+def get_all_tasks_filenames(author, parent):
+    tasks = TaskService.select_tasks(
+        search=f"FILTER ("
+               f" doc.parent == @parent"
+               f")",
+        parent=parent
+    )
+
+    filenames = []
+    if tasks:
+        for task in tasks:
+            filenames += task["file_names"]
+        paths = []
+        for file in list(set(filenames)):
+            path, _ = check_path(author, file)
+            paths.append(path)
+        return paths
+    else:
+        return []
+
+
 class Executor:
     def __init__(self, logger, task_id):
         self.logger = logger
@@ -296,6 +319,12 @@ class Executor:
                         parent=a_task["parent"],
                         tasks_list=get_parent_tasks(a_task["parent"])
                     )
+                if a_task.get('name', '') == 'load_anndata':
+                    a_task["params"].update(
+                        data_storage=os.getenv("DATA_STORAGE"),
+                        files=get_all_tasks_filenames(a_task.get('author'), a_task["parent"])
+                    )
+
                 a_task["params"].update(
                     image_path=path,
                     folder=script_path,
