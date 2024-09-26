@@ -5,5 +5,4 @@ apt-get update
 apt-get upgrade -y
 
 echo "Installing GDAL and UDUNITS2"
-apt-get -y install libudunits2-dev libgdal-dev
-apt-get -y install libfftw3-dev
+apt-get -y install libudunits2-dev libgdal-dev libfftw3-dev
