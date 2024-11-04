@@ -535,11 +535,15 @@ class Executor:
                 tasks_list = data.get('tasks_list', [])
                 adatas = result_data.get('adatas_list', None)
                 if part in ['phenograph_cluster', 'clustering', 'clq_anndata', 'niche_analysis']:
+                    print(1)
+                    # zarr_dir = os.path.join(os.path.dirname(pickle_filename), 'static', 'zarr.h5ad.zarr')
+                    # logger.debug(f"zarr_dir: {zarr_dir}")
+                    # os.makedirs(zarr_dir, exist_ok=True)
+                    # try:
+                    #     result_data.get('adata', None).write_zarr(zarr_dir)
+                    # except Exception as e:
+                    #     logger.error(f"Saving zarr problem: {e}")
 
-                    zarr_dir = os.path.join(os.path.dirname(pickle_filename), 'static', 'zarr.h5ad.zarr')
-                    logger.debug(f"zarr_dir: {zarr_dir}")
-                    os.makedirs(zarr_dir, exist_ok=True)
-                    result_data.get('adata', None).write_zarr(zarr_dir)
 
                 if adatas:
                     for task in tasks_list:
@@ -551,9 +555,13 @@ class Executor:
                                 )
                                 if os.path.exists(zarr_dir):
                                     shutil.rmtree(zarr_dir)
-                                logger.debug(f"zarr_dir: {zarr_dir}")
-                                os.makedirs(zarr_dir, exist_ok=True)
-                                one_adata.write_zarr(zarr_dir)
+                                print(2)
+                                # logger.debug(f"zarr_dir: {zarr_dir}")
+                                # os.makedirs(zarr_dir, exist_ok=True)
+                                # try:
+                                    # one_adata.write_zarr(zarr_dir)
+                                # except Exception as e:
+                                #     logger.error(f"Saving zarr problem: {e}")
 
                 return {
                     **data,
