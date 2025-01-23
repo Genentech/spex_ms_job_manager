@@ -396,7 +396,8 @@ class Executor:
             data.get('conda', []),
             data.get('conda_pip', []),
         )
-        return self.run_subprocess(
+        start_time = time.time()
+        result = self.run_subprocess(
             folder,
             script,
             part,
@@ -404,6 +405,13 @@ class Executor:
             filename,
             kwargs
         )
+        end_time = time.time()
+        execution_time = end_time - start_time
+
+        self.logger.info(
+            f"Execution of run_subprocess completed for {script}-{part}, Time: {execution_time:.2f} seconds"
+        )
+        return result
 
     def check_create_install_lib(self, script, part, libs, conda, conda_pip):
         if not (isinstance(libs, list) and libs):
