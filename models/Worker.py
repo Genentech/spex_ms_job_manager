@@ -392,7 +392,7 @@ class Executor:
         self.check_create_install_lib(
             script,
             part,
-            data.get("libs", [])+["dill==0.3.8"],
+            data.get("libs", [])+["dill==0.3.8", "psutil"],
             data.get('conda', []),
             data.get('conda_pip', []),
         )
