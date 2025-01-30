@@ -56,6 +56,8 @@ if __name__ == '__main__':
             f"VMS={memory_info.vms / (1024 * 1024):.2f} MB, "
             f"PATH={env_short}, "
             f"TIME={end_time - start_time:.2f} seconds"
+            f"Start time={time.strftime('%H:%M', time.localtime(start_time))} "
+            f"End time={time.strftime('%H:%M', time.localtime(end_time))} "
         )
 
         if not (result and len(result.keys()) > 0):
